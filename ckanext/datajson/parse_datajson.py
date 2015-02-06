@@ -5,11 +5,11 @@ from string import Template
 
 
 def parse_datajson_entry(datajson, package, defaults):
-    package["title"] = (defaults.get("Title Prefix") + ' ' +datajson.get("title", defaults.get("Title"))).strip()
+    package["title"] = (defaults.get("Title Prefix",'') + ' ' +datajson.get("title", defaults.get("Title"))).strip()
     package["notes"] = html2text.html2text(datajson.get("description", defaults.get("Notes")))
     if not hasattr(datajson.get("keyword"), '__iter__'):
         package["tags"] = [{"name": t} for t in
-                           datajson.get("keyword").split(",") if t.strip() != ""]
+                           datajson.get("keyword",'').split(",") if t.strip() != ""]
     else:
         package["tags"] = [{"name": t} for t in datajson.get("keyword")]
     #package["groups"] = [{"name": g} for g in
@@ -21,7 +21,7 @@ def parse_datajson_entry(datajson, package, defaults):
     #{'value': u'2014-12-11T22:42:37.741Z', 'key': 'Date Released'}
     #extra(package, "Date Released", datajson.get("issued"))
 
-    if 'http://creativecommons.org/licenses/by/3.0/au' in datajson.get("license"):
+    if 'http://creativecommons.org/licenses/by/3.0/au' in datajson.get("license",''):
         package['license_id'] = 'cc-by'
     #spatial: "146.9998,-41.5046,147.2943,-41.2383"
 
@@ -49,18 +49,26 @@ def parse_datajson_entry(datajson, package, defaults):
     except:
         pass
 
-    package['contact_point'] =  datajson.get("contactPoint", "data.gov@finance.gov.au")
+    if "mbox" in datajson:
+        package['contact_point'] =  datajson.get("mbox")
+    if datajson.get("contactPoint"):
+        if 'hasEmail' in datajson.get("contactPoint"):
+            package['contact_point'] = datajson.get("contactPoint")['hasEmail'].replace('mailto:','')
+        else:
+            package['contact_point'] = datajson.get("contactPoint")
+    if 'contact_point' not in package or package['contact_point'] == '':
+        package['contact_point'] = "data.gov@finance.gov.au"
     package['temporal_coverage_from'] = datajson.get("issued")
     package['temporal_coverage_to'] = datajson.get("modified")
     package['update_freq'] = 'asNeeded'
     package["url"] = datajson.get("landingPage", datajson.get("webService", datajson.get("accessURL")))
     package["resources"] = []
     for d in datajson.get("distribution", []):
-        for k in ("accessURL", "webService"):
+        for k in ("downloadURL", "accessURL", "webService"):
             if d.get(k, "").strip() != "":
                 r = {
                 "url": d[k],
-                "format": normalize_format(d.get("format", "Query Tool" if k == "webService" else "Unknown")),
+                "format": normalize_format(d.get("format", d.get('mediaType',"Query Tool" if k == "webService" else "Unknown"))),
                 }
                 extra(r, "Language", d.get("language"))
                 extra(r, "Size", d.get("size"))
@@ -86,10 +94,16 @@ def normalize_format(format):
     format = format.lower()
     m = re.match(r"((application|text)/(\S+))(; charset=.*)?", format)
     if m:
-        if m.group(1) == "text/plain": return "Text"
-        if m.group(1) == "application/zip": return "ZIP"
-        if m.group(1) == "application/vnd.ms-excel": return "XLS"
-        if m.group(1) == "application/x-msaccess": return "Access"
+        result = m.group(1).replace(';','')
+        if result == "text/plain": return "txt"
+        if result == "application/zip": return "zip"
+        if result == "application/vnd.ms-excel": return "xls"
+        if result == "application/x-msaccess": return "mdb"
+        if result == "text/csv": return "csv"
+        if result == "application/rdf+xml": return "rdf"
+        if result == "application/json": return "json"
+        if result == "application/xml": return "xml"
+        if result == "application/unknown": return "other"
         return "Other"
     if format == "text": return "Text"
     return format.upper()  # hope it's one of our formats by converting to upprecase

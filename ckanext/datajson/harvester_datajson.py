@@ -17,7 +17,11 @@ class DataJsonHarvester(DatasetHarvesterBase):
         }
 
     def load_remote_catalog(self, harvest_job):
-        return json.load(urllib2.urlopen(harvest_job.source.url))
+        catalog = json.load(urllib2.urlopen(harvest_job.source.url))
+        if 'dataset' in catalog:
+            return catalog['dataset']
+        else:
+            return catalog
         
     def set_dataset_info(self, pkg, dataset, dataset_defaults):
         from parse_datajson import parse_datajson_entry
