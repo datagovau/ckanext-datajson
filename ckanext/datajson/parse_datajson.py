@@ -1,12 +1,14 @@
 import re
 import html2text
+import requests
 
 from string import Template
 
 
 def parse_datajson_entry(datajson, package, defaults):
     package["title"] = (defaults.get("Title Prefix",'') + ' ' +datajson.get("title", defaults.get("Title"))).strip()
-    package["notes"] = html2text.html2text(datajson.get("description", defaults.get("Notes")))
+    if datajson.get("description"):
+        package["notes"] = html2text.html2text(datajson.get("description", ' '))
     if not hasattr(datajson.get("keyword"), '__iter__'):
         package["tags"] = [{"name": t} for t in
                            datajson.get("keyword",'').split(",") if t.strip() != ""]
@@ -15,7 +17,8 @@ def parse_datajson_entry(datajson, package, defaults):
     #package["groups"] = [{"name": g} for g in
     #                     defaults.get("Groups",
     #                         [])]  # the complexity of permissions makes this useless, CKAN seems to ignore
-    #package["organization"] = datajson.get("organization", defaults.get("Organization"))
+
+    #package["organization"] = datajson.get("publisher", defaults.get("Organization"))
 
     #extra(package, "Date Updated", datajson.get("modified"))
     #{'value': u'2014-12-11T22:42:37.741Z', 'key': 'Date Released'}
@@ -23,7 +26,11 @@ def parse_datajson_entry(datajson, package, defaults):
 
     if 'http://creativecommons.org/licenses/by/3.0/au' in datajson.get("license",''):
         package['license_id'] = 'cc-by'
-    #spatial: "146.9998,-41.5046,147.2943,-41.2383"
+    elif 'http' in datajson.get("license",''):
+        license_text = requests.get(datajson.get("license")).content
+        if 'http://creativecommons.org/licenses/by/3.0/au' in license_text:
+            package['license_id'] = 'cc-by'
+
 
     package["data_state"] = "active"
     package['jurisdiction'] = "Commonwealth"
@@ -64,6 +71,42 @@ def parse_datajson_entry(datajson, package, defaults):
     package["url"] = datajson.get("landingPage", datajson.get("webService", datajson.get("accessURL")))
     package["resources"] = []
     for d in datajson.get("distribution", []):
+        # convert Esri REST API to WMS
+        if d.get('title', "").strip() == "Esri REST API":
+            url = d['accessURL']
+            url_parts = url.split('/')
+            layer_id = url_parts[-1]  # last item in the array # last item in the array
+            base_url = ('/'.join(url_parts[:-1]))
+            ows_base_url = base_url.replace('arcgis/rest/services','arcgis/services')
+            if 'MapServer' in url: # FeatureServer doesn't have OWS services, only REST API
+                metadata = requests.get(base_url+"?f=pjson").json()
+                if 'WMSServer' in metadata['supportedExtensions']:
+                    wms_url = ows_base_url + "/WMSServer"
+                    r = {
+                        "name": 'Web Map Service (WMS) API',
+                        "url": wms_url,
+                        "format": 'wms',
+                        "wms_layer": layer_id
+                        }
+                    package["resources"].append(r)
+                if 'WFSServer' in metadata['supportedExtensions']:
+                    wfs_url = ows_base_url + "/WFSServer"
+                    r = {
+                        "name": 'Web Feature Service (WFS) API',
+                        "url": wfs_url,
+                        "format": 'wfs',
+                        "wfs_layer": layer_id
+                    }
+                    package["resources"].append(r)
+                if 'WMTSServer' in metadata['supportedExtensions']:
+                    wmts_url = ows_base_url + "/WMTSServer"
+                    r = {
+                        "name": 'Web Map Tile Service (WFS) API',
+                        "url": wmts_url,
+                        "format": 'wmts',
+                        "wmts_layer": layer_id
+                    }
+                    package["resources"].append(r)
         for k in ("downloadURL", "accessURL", "webService"):
             if d.get(k, "").strip() != "":
                 r = {
@@ -79,7 +122,7 @@ def parse_datajson_entry(datajson, package, defaults):
                 except:
                     pass
 
-                r["name"] = r["format"]
+                r["name"] = d.get('title',r["format"])
 
                 package["resources"].append(r)
 
