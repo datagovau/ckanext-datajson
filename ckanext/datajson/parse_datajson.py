@@ -14,15 +14,6 @@ def parse_datajson_entry(datajson, package, defaults):
                            datajson.get("keyword",'').split(",") if t.strip() != ""]
     else:
         package["tags"] = [{"name": t} for t in datajson.get("keyword")]
-    #package["groups"] = [{"name": g} for g in
-    #                     defaults.get("Groups",
-    #                         [])]  # the complexity of permissions makes this useless, CKAN seems to ignore
-
-    #package["organization"] = datajson.get("publisher", defaults.get("Organization"))
-
-    #extra(package, "Date Updated", datajson.get("modified"))
-    #{'value': u'2014-12-11T22:42:37.741Z', 'key': 'Date Released'}
-    #extra(package, "Date Released", datajson.get("issued"))
 
     if 'http://creativecommons.org/licenses/by/3.0/au' in datajson.get("license",''):
         package['license_id'] = 'cc-by'
@@ -71,42 +62,6 @@ def parse_datajson_entry(datajson, package, defaults):
     package["url"] = datajson.get("landingPage", datajson.get("webService", datajson.get("accessURL")))
     package["resources"] = []
     for d in datajson.get("distribution", []):
-        # convert Esri REST API to WMS
-        if d.get('title', "").strip() == "Esri REST API":
-            url = d['accessURL']
-            url_parts = url.split('/')
-            layer_id = url_parts[-1]  # last item in the array # last item in the array
-            base_url = ('/'.join(url_parts[:-1]))
-            ows_base_url = base_url.replace('arcgis/rest/services','arcgis/services')
-            if 'MapServer' in url: # FeatureServer doesn't have OWS services, only REST API
-                metadata = requests.get(base_url+"?f=pjson").json()
-                if 'WMSServer' in metadata['supportedExtensions']:
-                    wms_url = ows_base_url + "/WMSServer"
-                    r = {
-                        "name": 'Web Map Service (WMS) API',
-                        "url": wms_url,
-                        "format": 'wms',
-                        "wms_layer": layer_id
-                        }
-                    package["resources"].append(r)
-                if 'WFSServer' in metadata['supportedExtensions']:
-                    wfs_url = ows_base_url + "/WFSServer"
-                    r = {
-                        "name": 'Web Feature Service (WFS) API',
-                        "url": wfs_url,
-                        "format": 'wfs',
-                        "wfs_layer": layer_id
-                    }
-                    package["resources"].append(r)
-                if 'WMTSServer' in metadata['supportedExtensions']:
-                    wmts_url = ows_base_url + "/WMTSServer"
-                    r = {
-                        "name": 'Web Map Tile Service (WFS) API',
-                        "url": wmts_url,
-                        "format": 'wmts',
-                        "wmts_layer": layer_id
-                    }
-                    package["resources"].append(r)
         for k in ("downloadURL", "accessURL", "webService"):
             if d.get(k, "").strip() != "":
                 r = {
@@ -123,7 +78,9 @@ def parse_datajson_entry(datajson, package, defaults):
                     pass
 
                 r["name"] = d.get('title',r["format"])
-
+                if r["format"].lower() == 'wms':
+                    url_parts = datajson.get("webService").split('/')
+                    r['wms_layer'] = url_parts[-1]  # last item in the array
                 package["resources"].append(r)
 
 
@@ -134,7 +91,7 @@ def extra(package, key, value):
 
 def normalize_format(format):
     # Format should be a file extension. But sometimes Socrata outputs a MIME type.
-    format = format.lower()
+    format = format.lower().replace("ogc ","")
     m = re.match(r"((application|text)/(\S+))(; charset=.*)?", format)
     if m:
         result = m.group(1).replace(';','')
