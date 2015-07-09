@@ -40,7 +40,7 @@ class DatasetHarvesterBase(HarvesterBase):
         # Setting validate to False is critical for getting the harvester plugin
         # to set extra fields on the package during indexing (see ckanext/harvest/plugin.py
         # line 99, https://github.com/okfn/ckanext-harvest/blob/master/ckanext/harvest/plugin.py#L99).
-        return { "user": "datagovaubot", "ignore_auth": True, "validate": False }
+        return { "user": "maxious", "ignore_auth": True, "validate": False }
         
     # SUBCLASSES MUST IMPLEMENT
     def load_remote_catalog(self, harvest_job):
@@ -183,10 +183,6 @@ class DatasetHarvesterBase(HarvesterBase):
                 {
                 "key": "harvest_harvester_version",
                 "value": self.HARVESTER_VERSION,
-                },
-                {
-                "key": "harvest_last_updated",
-                "value": datetime.datetime.utcnow().isoformat(),
                 }]
         }
         
