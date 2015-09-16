@@ -34,7 +34,12 @@ def parse_datajson_entry(datajson, package, defaults):
             package['license_id'] = 'cc-by-4'
 
     package["data_state"] = "active"
-    package['jurisdiction'] = "Commonwealth"
+    package['jurisdiction'] = defaults.get("jurisdiction", "Commonwealth")
+    if 'extras' not in package:
+        package['extras'] = []
+    if defaults.get("harvest_portal"):
+        package['extras'].append({"key": 'harvest_portal', "value": defaults.get("harvest_portal")})
+        package['extras'].append({"key": 'harvest_url', "value": datajson.get('landingPage') or datajson.get('identifier')})
     package['spatial_coverage'] = datajson.get("spatial", "GA1")
     try:
         bbox = datajson.get("spatial").split(',')

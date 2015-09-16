@@ -139,14 +139,18 @@ class DatasetHarvesterBase(HarvesterBase):
         log.debug('In %s import_stage' % repr(self))
         
         # Get default values.
-       	source_config = yaml.load(harvest_object.source.config)
-       	dataset_defaults = None
-       	try:
-       		dataset_defaults = source_config["defaults"]
-       	except TypeError:
-       		pass
-       	except KeyError:
-       		pass
+        dataset_defaults = None
+        try:
+            source_config = yaml.load(harvest_object.source.config)
+
+            try:
+                dataset_defaults = source_config["defaults"]
+            except TypeError:
+                pass
+            except KeyError:
+                pass
+        except Exception,e:
+            print e
         if not dataset_defaults: dataset_defaults = { }
 
         # Get the metadata that we stored in the HarvestObject's content field.
