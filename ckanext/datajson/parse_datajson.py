@@ -77,7 +77,7 @@ def parse_datajson_entry(datajson, package, defaults):
     package["url"] = datajson.get("landingPage", datajson.get("webService", datajson.get("accessURL")))
     package["resources"] = []
     for d in datajson.get("distribution", []):
-        for k in ("downloadURL", "accessURL", "webService"):
+        for k in ("downloadURL", "accessURL", "webService", "downloadUrl", "accessUrl"):
             if d.get(k, "").strip() != "":
                 r = {
                     "url": d[k],
