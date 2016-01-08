@@ -9,7 +9,7 @@ from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError,
                                     HarvestObjectError
 from ckanext.harvest.harvesters.base import HarvesterBase
 
-import uuid, datetime, hashlib, urllib2, json, yaml
+import uuid, datetime, hashlib, urllib2, json, yaml, HTMLParser
 
 import logging
 log = logging.getLogger("harvester")
@@ -154,7 +154,8 @@ class DatasetHarvesterBase(HarvesterBase):
         if not dataset_defaults: dataset_defaults = { }
 
         # Get the metadata that we stored in the HarvestObject's content field.
-        dataset = json.loads(harvest_object.content)
+        h = HTMLParser.HTMLParser()
+        dataset = json.loads(h.unescape(harvest_object.content))
 
         # We need to get the owner organization (if any) from the harvest
         # source dataset
