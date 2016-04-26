@@ -1,7 +1,6 @@
-from ckan.lib.base import c
 from ckan import model
 from ckan.model import Session, Package
-from ckan.logic import ValidationError, NotFound, get_action
+from ckan.logic import  NotFound, get_action
 from ckan.lib.munge import munge_title_to_name
 from ckan.lib.search.index import PackageSearchIndex
 
@@ -10,10 +9,10 @@ from ckanext.harvest.model import HarvestJob, HarvestObject, HarvestGatherError,
 from ckanext.harvest.harvesters.base import HarvesterBase
 from plugin import DataJsonPlugin
 
-import uuid, datetime, hashlib, urllib2, json, yaml, re, smtplib
-from smtplib import SMTP
+import uuid, datetime, hashlib, json, yaml, re, smtplib
 from email.mime.text import MIMEText
 
+import HTMLParser
 import logging
 log = logging.getLogger("harvester")
 
