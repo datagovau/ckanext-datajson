@@ -127,10 +127,16 @@ def normalize_format(format, raise_on_unknown=False):
     format = format.lower()
     m = re.match(r"((application|text)/(\S+))(; charset=.*)?", format)
     if m:
-        if m.group(1) == "text/plain": return "Text"
-        if m.group(1) == "application/zip": return "ZIP"
-        if m.group(1) == "application/vnd.ms-excel": return "XLS"
-        if m.group(1) == "application/x-msaccess": return "Access"
+        result = m.group(1).replace(';', '')
+        if result == "text/plain": return "txt"
+        if result == "application/zip": return "zip"
+        if result == "application/vnd.ms-excel": return "xls"
+        if result == "application/x-msaccess": return "mdb"
+        if result == "text/csv": return "csv"
+        if result == "application/rdf+xml": return "rdf"
+        if result == "application/json": return "json"
+        if result == "application/xml": return "xml"
+        if result == "application/unknown": return "other"
         if raise_on_unknown: raise ValueError()  # caught & ignored by caller
         return "Other"
     if format == "text": return "Text"
