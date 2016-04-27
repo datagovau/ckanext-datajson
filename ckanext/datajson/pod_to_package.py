@@ -83,7 +83,12 @@ def parse_datajson_entry(datajson, package, harvester_config):
         package["tags"] = [{"name": munge_title_to_name(t)} for t in
                            datajson.get("keyword") if t.strip() != ""]
 
-    package['extras'] = [{}]
+    # process extras
+    for ex in package['extras']:
+        # jurisdiction is part of the DDG core schema and needs to be treated as such
+        if ex.get('key') == "jurisdiction":
+            package['jurisdiction'] = ex['value']
+            package['extras'].remove(ex)
 
     # harvest_portals
     if harvester_config.get("harvest_portal"):
