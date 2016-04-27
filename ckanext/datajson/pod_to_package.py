@@ -81,7 +81,7 @@ def parse_datajson_entry(datajson, package, harvester_config):
         package["tags"] = [{"name": munge_title_to_name(t)} for t in
                            datajson.get("keyword") if t.strip() != ""]
 
-    package['extras'] = {}
+    package['extras'] = []
 
     # harvest_portals
     if harvester_config.get("harvest_portal"):
