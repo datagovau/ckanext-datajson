@@ -234,7 +234,10 @@ class DatasetHarvesterBase(HarvesterBase):
 
         # Get the metadata that we stored in the HarvestObject's content field.
         h = HTMLParser.HTMLParser()
-        dataset = json.loads(h.unescape(harvest_object.content))
+        try:
+            dataset = json.loads(h.unescape(harvest_object.content))
+        except:
+            return False
 
         # We need to get the owner organization (if any) from the harvest
         # source dataset
