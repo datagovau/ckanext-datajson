@@ -37,6 +37,8 @@ def parse_datajson_entry(datajson, package, harvester_config):
     package["data_state"] = "active"
     package['jurisdiction'] = harvester_config["defaults"].get("jurisdiction", "Commonwealth")
     package['spatial_coverage'] = datajson.get("spatial", "GA1")
+    if not package['spatial_coverage'] or package['spatial_coverage'] == "":
+        package['spatial_coverage'] = "GA1"
     try:
         bbox = datajson.get("spatial").split(',')
         xmin = float(bbox[0])
