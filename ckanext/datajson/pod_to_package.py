@@ -66,10 +66,9 @@ def parse_datajson_entry(datajson, package, harvester_config):
             package['contact_point'] = datajson.get("contactPoint")['hasEmail'].replace('mailto:', '')
         else:
             package['contact_point'] = datajson.get("contactPoint")
-    if 'contact_point' not in package or package['contact_point'] == '':
+    if 'contact_point' not in package or package['contact_point'] == '' or not isinstance(package['contact_point'], str):
         package['contact_point'] = "data.gov@finance.gov.au"
-    if not isinstance(package['contact_point'], str):
-        package['contact_point'] = str(package['contact_point'])
+
     package['temporal_coverage_from'] = datajson.get("issued")
     package['temporal_coverage_to'] = datajson.get("modified")
     package['update_freq'] = 'asNeeded'
