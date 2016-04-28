@@ -10,6 +10,7 @@ from ckanext.datajson.harvester_base import DatasetHarvesterBase
 def parse_datajson_entry(datajson, package, harvester_config):
     # Notes:
     # * the data.json field "identifier" is handled by the harvester
+    print 'Parsing for config: %r' % harvester_config
 
     package["title"] = (harvester_config.get("Title Prefix", '') + ' ' +
                         datajson.get("title", harvester_config.get("Title"))).strip()
@@ -82,16 +83,10 @@ def parse_datajson_entry(datajson, package, harvester_config):
         package["tags"] = [{"name": munge_title_to_name(t)} for t in
                            datajson.get("keyword") if t.strip() != ""]
 
-    # process extras
-    for ex in package['extras']:
-        # jurisdiction is part of the DDG core schema and needs to be treated as such
-        if ex.get('key') == "jurisdiction":
-            package['jurisdiction'] = ex['value']
-            package['extras'].remove(ex)
-
     # harvest_portals
     if harvester_config.get("harvest_portal"):
         extra(package, "harvest_portal", harvester_config, "harvest_portal")
+        print 'Landing page: %r' % datajson.get('landingPage')
         package['extras'].append(
             {"key": 'harvest_url', "value": datajson.get('landingPage') or datajson.get('identifier')})
 

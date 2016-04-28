@@ -384,7 +384,7 @@ class DatasetHarvesterBase(HarvesterBase):
 
     def set_extras(self, package, extras):
         for k, v in extras.items():
-            if k in ("title", "notes", "author", "url"):
+            if k in ("title", "notes", "author", "url", "jurisdiction"):
                 # these are CKAN package fields
                 package[k] = v
             elif k == "tags":
