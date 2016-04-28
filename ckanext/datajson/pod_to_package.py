@@ -10,10 +10,8 @@ from ckanext.datajson.harvester_base import DatasetHarvesterBase
 def parse_datajson_entry(datajson, package, harvester_config):
     # Notes:
     # * the data.json field "identifier" is handled by the harvester
-    print 'Parsing for config: %r' % harvester_config
-
-    package["title"] = (harvester_config.get("Title Prefix", '') + ' ' +
-                        datajson.get("title", harvester_config.get("Title"))).strip()
+    package["title"] = (harvester_config["defaults"].get("Title Prefix", '') + ' ' +
+                        datajson.get("title", harvester_config["defaults"].get("Title"))).strip()
     package["notes"] = datajson.get("description", package.get("notes"))
     package["author"] = datajson.get("publisher", package.get("author"))
     package["url"] = datajson.get("landingPage",
@@ -37,7 +35,7 @@ def parse_datajson_entry(datajson, package, harvester_config):
             package['license_id'] = 'cc-by-4'
 
     package["data_state"] = "active"
-    package['jurisdiction'] = harvester_config.get("jurisdiction", "Commonwealth")
+    package['jurisdiction'] = harvester_config["defaults"].get("jurisdiction", "Commonwealth")
     package['spatial_coverage'] = datajson.get("spatial", "GA1")
     try:
         bbox = datajson.get("spatial").split(',')
@@ -84,9 +82,8 @@ def parse_datajson_entry(datajson, package, harvester_config):
                            datajson.get("keyword") if t.strip() != ""]
 
     # harvest_portals
-    if harvester_config.get("harvest_portal"):
-        extra(package, "harvest_portal", harvester_config, "harvest_portal")
-        print 'Landing page: %r' % datajson.get('landingPage')
+    if harvester_config["defaults"].get("harvest_portal"):
+        extra(package, "harvest_portal", harvester_config["defaults"], "harvest_portal")
         package['extras'].append(
             {"key": 'harvest_url', "value": datajson.get('landingPage') or datajson.get('identifier')})
 
