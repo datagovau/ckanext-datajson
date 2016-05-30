@@ -319,31 +319,34 @@ class DatasetHarvesterBase(HarvesterBase):
             
             log.warn('updating package %s (%s) from %s' % (pkg["name"], pkg["id"], harvest_object.source.url))
             pkg = get_action('package_update')(self.context(), pkg)
+
+            # Flag the other HarvestObjects linking to this package as not current anymore
+            for ob in model.Session.query(HarvestObject).filter_by(package_id=pkg["id"]):
+                ob.current = False
+                ob.save()
+
+            # Flag this as the current harvest object
+            harvest_object.package_id = pkg['id']
+            harvest_object.current = True
+            harvest_object.save()
         else:
             # It doesn't exist yet. Create a new one.
             try:
+                harvest_object.package_id = pkg['id']
+                harvest_object.current = True
+
+                harvest_object.add()
+
+                model.Session.execute('SET CONSTRAINTS harvest_object_package_id_fkey DEFERRED')
+                model.Session.flush()
+
                 pkg = get_action('package_create')(self.context(), pkg)
                 log.warn('created package %s (%s) from %s' % (pkg["name"], pkg["id"], harvest_object.source.url))
             except:
                 log.error('failed to create package %s from %s' % (pkg["name"], harvest_object.source.url))
                 raise
 
-        # Flag the other HarvestObjects linking to this package as not current anymore
-        for ob in model.Session.query(HarvestObject).filter_by(package_id=pkg["id"]):
-            ob.current = False
-            ob.save()
-
-        # Flag this HarvestObject as the current harvest object
-        harvest_object.package_id = pkg['id']
-        harvest_object.current = True
-        harvest_object.save()
-
-        # Now that the package and the harvest source are associated, re-index the
-        # package so it knows it is part of the harvest source. The CKAN harvester
-        # does this by creating the association before the package is saved by
-        # overriding the GUID creation on a new package. That's too difficult.
-        # So here we end up indexing twice.
-        PackageSearchIndex().index_package(pkg) 
+        Session.commit()
 
         return True
         
