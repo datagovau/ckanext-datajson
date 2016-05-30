@@ -332,7 +332,7 @@ class DatasetHarvesterBase(HarvesterBase):
         else:
             # It doesn't exist yet. Create a new one.
             try:
-                harvest_object.package_id = pkg['id']
+                harvest_object.package_id = harvest_object.guid
                 harvest_object.current = True
 
                 harvest_object.add()
