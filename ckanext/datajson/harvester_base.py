@@ -87,7 +87,7 @@ class DatasetHarvesterBase(HarvesterBase):
             except:
                 # reference is broken
                 continue
-            sid = self.find_extra(pkg, "source_identifier")
+            sid = self.find_extra(pkg, "harvest_source_id")
             if sid:
                 existing_datasets[sid] = pkg
                     
@@ -252,16 +252,16 @@ class DatasetHarvesterBase(HarvesterBase):
             "state": "active", # in case was previously deleted
             "owner_org": owner_org,
             "extras": [{
-                "key": "source_url",
-                "value": harvest_object.source.url,
+                "key": "harvest_source_url",
+                "value": harvest_object.source.url.strip('/'),
                 },
                 {
-                "key": "source_title",
+                "key": "harvest_source_title",
                 "value": harvest_object.source.title,
                 },
                 {
-                "key": "source_identifier",
-                "value": dataset["identifier"],
+                "key": "harvest_source_id",
+                "value": harvest_object.source.id,
                 },
                 {
                 "key": "source_hash",
@@ -274,6 +274,14 @@ class DatasetHarvesterBase(HarvesterBase):
                 {
                 "key": "harvest_last_updated",
                 "value": datetime.datetime.utcnow().isoformat(),
+                },
+                {
+                "key": "harvest_job_id",
+                "value": harvest_object.job.id,
+                },
+                {
+                "key": "harvest_object_id",
+                "value": harvest_object.id,
                 }]
         }
 
