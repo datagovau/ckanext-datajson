@@ -183,7 +183,7 @@ class DatasetHarvesterBase(HarvesterBase):
             if pkg.get("state") == "deleted": continue # already deleted
             deletia+=1
 
-        log.warn('%d datasets in %s; marked %d for deletion' % (dataset_count, harvest_job.source.url, deletia))
+        log.debug('%d datasets in %s; marked %d for deletion' % (dataset_count, harvest_job.source.url, deletia))
         if dataset_count > 0 and float(deletia)/float(dataset_count) > 0.1 and DataJsonPlugin.allow_harvester_deletion != "true":
             log.warn('Too many deleted datasets in %s, skipping deletion' % (harvest_job.source.url))
             package_titles = u"The following datasets have been dropped from this feed, but since there are so many I'm going to hold off on actually deleting them:\n\n"
@@ -305,7 +305,7 @@ class DatasetHarvesterBase(HarvesterBase):
             existing_pkg.update(pkg) # preserve other fields that we're not setting, but clobber extras
             pkg = existing_pkg
             
-            log.warn('updating package %s (%s) from %s' % (pkg["name"], pkg["id"], harvest_object.source.url))
+            log.debug('updating package %s (%s) from %s' % (pkg["name"], pkg["id"], harvest_object.source.url))
             pkg = get_action('package_update')(self.context(), pkg)
 
             # Flag the other HarvestObjects linking to this package as not current anymore
