@@ -32,7 +32,7 @@ def parse_datajson_entry(datajson, package, harvester_config):
         if 'http://creativecommons.org/licenses/by/3.0/au' in license_text:
             package['license_id'] = 'cc-by'
         if 'http://creativecommons.org/licenses/by/4.0/' in license_text:
-            package['license_id'] = 'cc-by-4'
+            package['license_id'] = 'cc-by-4.0'
 
     package["data_state"] = "active"
     package['jurisdiction'] = harvester_config["defaults"].get("jurisdiction", "Commonwealth")
