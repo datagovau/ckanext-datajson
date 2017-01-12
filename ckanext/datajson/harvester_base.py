@@ -195,7 +195,7 @@ class DatasetHarvesterBase(HarvesterBase):
             for upstreamid, pkg in existing_datasets.items():
                 if upstreamid in seen_datasets: continue # was just updated
                 if pkg.get("state") == "deleted": continue # already deleted
-                log.warn('%s (%s) would be deleted %r' % (pkg["title"], pkg["id"], allow_harvester_deletion))
+                log.debug('%s (%s) would be deleted %r' % (pkg["title"], pkg["id"], allow_harvester_deletion))
                 package_titles += pkg["title"] + "\n\n"
             msg = MIMEText(package_titles, _charset='utf-8')
             msg['Subject'] = "Harvested dataset "+harvest_job.source.url+" has too many deletions!"
@@ -213,7 +213,7 @@ class DatasetHarvesterBase(HarvesterBase):
             if pkg.get("state") == "deleted": continue # already deleted
             pkg["state"] = "deleted"
             pkg["name"] = self.make_package_name(pkg["title"], pkg["id"], True) # try to prevent name clash by giving it a "deleted-" name
-#            log.warn('deleting package %s (%s) because it is no longer in %s' % (pkg["name"], pkg["id"], harvest_job.source.url))
+            log.debug('deleting package %s (%s) because it is no longer in %s' % (pkg["name"], pkg["id"], harvest_job.source.url))
             get_action('package_update')(self.context(), pkg)
             
         return object_ids
@@ -335,7 +335,7 @@ class DatasetHarvesterBase(HarvesterBase):
                 model.Session.flush()
 
                 pkg = get_action('package_create')(self.context(), pkg)
-                log.warn('created package %s (%s) from %s' % (pkg["name"], pkg["id"], harvest_object.source.url))
+                log.debug('created package %s (%s) from %s' % (pkg["name"], pkg["id"], harvest_object.source.url))
             except:
                 log.error('failed to create package %s from %s' % (pkg["name"], harvest_object.source.url))
                 raise
