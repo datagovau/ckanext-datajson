@@ -67,7 +67,7 @@ def parse_datajson_entry(datajson, package, harvester_config):
             package['contact_point'] = datajson.get("contactPoint")['hasEmail'].replace('mailto:', '')
         else:
             package['contact_point'] = datajson.get("contactPoint")
-    if 'contact_point' not in package or package['contact_point'] == '' or not isinstance(package['contact_point'], str):
+    if 'contact_point' not in package or package['contact_point'] == '' or not isinstance(package['contact_point'], basestring):
         package['contact_point'] = "data.gov@finance.gov.au"
 
     package['temporal_coverage_from'] = datajson.get("issued")
@@ -75,7 +75,7 @@ def parse_datajson_entry(datajson, package, harvester_config):
     package['update_freq'] = 'asNeeded'
 
     # backwards-compatibility for files from Socrata
-    if isinstance(datajson.get("keyword"), str):
+    if isinstance(datajson.get("keyword"), basestring):
         package["tags"] = [{"name": munge_title_to_name(t)} for t in
                            datajson.get("keyword").split(",") if t.strip() != ""]
     # field is provided correctly as an array...
