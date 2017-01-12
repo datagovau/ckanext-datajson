@@ -67,6 +67,11 @@ class DatasetHarvesterBase(HarvesterBase):
         raise Exception("Not implemented")
 
     def gather_stage(self, harvest_job):
+        from pylons import config
+        import ckan.plugins.toolkit as toolkit
+
+        allow_harvester_deletion = toolkit.asbool(config.get("ckanext.datajson.allow_harvester_deletion", 'True'))
+
         # The gather stage scans a remote resource (like a /data.json file) for
         # a list of datasets to import.
 
@@ -184,13 +189,13 @@ class DatasetHarvesterBase(HarvesterBase):
             deletia+=1
 
         log.debug('%d datasets in %s; marked %d for deletion' % (dataset_count, harvest_job.source.url, deletia))
-        if dataset_count > 0 and float(deletia)/float(dataset_count) > 0.1 and DataJsonPlugin.allow_harvester_deletion != "true":
+        if dataset_count > 0 and float(deletia)/float(dataset_count) > 0.1 and not allow_harvester_deletion:
             log.warn('Too many deleted datasets in %s, skipping deletion' % (harvest_job.source.url))
             package_titles = u"The following datasets have been dropped from this feed, but since there are so many I'm going to hold off on actually deleting them:\n\n"
             for upstreamid, pkg in existing_datasets.items():
                 if upstreamid in seen_datasets: continue # was just updated
                 if pkg.get("state") == "deleted": continue # already deleted
-                log.warn('%s (%s) would be deleted %s' % (pkg["title"], pkg["id"], DataJsonPlugin.allow_harvester_deletion))
+                log.warn('%s (%s) would be deleted %r' % (pkg["title"], pkg["id"], allow_harvester_deletion))
                 package_titles += pkg["title"] + "\n\n"
             msg = MIMEText(package_titles, _charset='utf-8')
             msg['Subject'] = "Harvested dataset "+harvest_job.source.url+" has too many deletions!"
