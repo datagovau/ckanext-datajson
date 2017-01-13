@@ -27,8 +27,12 @@ def parse_datajson_entry(datajson, package, harvester_config):
     elif 'http' in datajson.get("license", ''):
         license_text = requests.get(datajson.get("license")).content
         if 'opendata.arcgis.com' in license_text:
-            license_text = requests.get(license_text).json()['description']
+            try:
+                license_text = requests.get(license_text).json()['description']
+            except:
+                license_text = datajson.get("license")
             package['citation'] = license_text
+            package['license_id'] = 'other'
         if 'http://creativecommons.org/licenses/by/3.0/au' in license_text:
             package['license_id'] = 'cc-by'
         if 'http://creativecommons.org/licenses/by/4.0/' in license_text:
