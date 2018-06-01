@@ -1,3 +1,4 @@
+import HTMLParser
 import re
 import html2text
 import requests
@@ -7,21 +8,26 @@ import io
 from string import Template
 
 vicroadsmeta = {}
+
+
 def utf_8_encoder(unicode_csv_data):
     for line in unicode_csv_data:
         yield line.encode('utf-8')
+
+
 def parse_datajson_entry(datajson, package, defaults):
     package["title"] = (defaults.get("Title Prefix", '') + ' ' +
                         datajson.get("title", defaults.get("Title"))).strip()
     if datajson.get("description"):
-        package["notes"] = html2text.html2text(datajson.get("description", ' '))
+        h = HTMLParser.HTMLParser()
+        package["notes"] = html2text.html2text(h.unescape(datajson.get("description", ' ')))
     if not hasattr(datajson.get("keyword"), '__iter__'):
         package["tags"] = [{"name": t} for t in
                            datajson.get("keyword", '').split(",") if t.strip() != ""]
     else:
         package["tags"] = [{"name": t} for t in datajson.get("keyword")]
 
-    if 'http://creativecommons.org/licenses/by/3.0/au' in datajson.get("license",''):
+    if 'http://creativecommons.org/licenses/by/3.0/au' in datajson.get("license", ''):
         package['license_id'] = 'cc-by'
     elif 'http' in datajson.get("license", ''):
         license_text = requests.get(datajson.get("license")).content
@@ -39,7 +45,8 @@ def parse_datajson_entry(datajson, package, defaults):
         package['extras'] = []
     if defaults.get("harvest_portal"):
         package['extras'].append({"key": 'harvest_portal', "value": defaults.get("harvest_portal")})
-        package['extras'].append({"key": 'harvest_url', "value": datajson.get('landingPage') or datajson.get('identifier')})
+        package['extras'].append(
+            {"key": 'harvest_url', "value": datajson.get('landingPage') or datajson.get('identifier')})
     package['spatial_coverage'] = datajson.get("spatial", "GA1")
     try:
         bbox = datajson.get("spatial").split(',')
@@ -58,7 +65,7 @@ def parse_datajson_entry(datajson, package, defaults):
         else:
             package['spatial'] = Template('''{"type": "Polygon", "coordinates": [[[$xmin, $ymin], [$xmax, $ymin],
              [$xmax, $ymax], [$xmin, $ymax], [$xmin, $ymin]]]}''').substitute(
-                        xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
+                xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
     except:
         pass
 
@@ -66,7 +73,7 @@ def parse_datajson_entry(datajson, package, defaults):
         package['contact_point'] = datajson.get("mbox")
     if datajson.get("contactPoint"):
         if 'hasEmail' in datajson.get("contactPoint"):
-            package['contact_point'] = datajson.get("contactPoint")['hasEmail'].replace('mailto:','')
+            package['contact_point'] = datajson.get("contactPoint")['hasEmail'].replace('mailto:', '')
         else:
             package['contact_point'] = datajson.get("contactPoint")
     if 'contact_point' not in package or package['contact_point'] == '':
@@ -85,8 +92,8 @@ def parse_datajson_entry(datajson, package, defaults):
                                                      d.get('mediaType', "Query Tool"
                                                      if k == "webService" else "Unknown"))),
                 }
-                #extra(r, "Language", d.get("language"))
-                #extra(r, "Size", d.get("size"))
+                # extra(r, "Language", d.get("language"))
+                # extra(r, "Size", d.get("size"))
 
                 # work-around for Socrata-style formats array
                 try:
@@ -126,21 +133,22 @@ def parse_datajson_entry(datajson, package, defaults):
         if title in vicroadsmeta:
             for r in package["resources"]:
                 r['release_date'] = vicroadsmeta[title]["Last_Updated"] \
-                                                  or vicroadsmeta[datajson.get("title")]["First_Date_Published"]
+                                    or vicroadsmeta[datajson.get("title")]["First_Date_Published"]
             if vicroadsmeta[title]["License"] == 'Internal use only':
                 package["private"] = "true"
             package["extract"] = vicroadsmeta[title]["Abstract"] or " "
             package["update_frequency"] = vicroadsmeta[title]["Frequency_of_Updates"]
             package["geo_coverage"] = vicroadsmeta[title]["Geographic_Extent"]
 
-#def extra(package, key, value):
+
+# def extra(package, key, value):
 #    if not value or len(value) == 0: return
 #    package.setdefault("extras", []).append({"key": key, "value": value})
 
 
 def normalize_format(format):
     # Format should be a file extension. But sometimes Socrata outputs a MIME type.
-    format = format.lower().replace("ogc ","")
+    format = format.lower().replace("ogc ", "")
     m = re.match(r"((application|text)/(\S+))(; charset=.*)?", format)
     if m:
         result = m.group(1).replace(';', '')
@@ -156,4 +164,3 @@ def normalize_format(format):
         return "Other"
     if format == "text": return "Text"
     return format.upper()  # hope it's one of our formats by converting to upprecase
-
