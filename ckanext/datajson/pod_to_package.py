@@ -1,53 +1,53 @@
 import HTMLParser
+from ckan.lib.munge import munge_title_to_name
+
 import re
-import html2text
 import requests
-import csv
-import io
 
 from string import Template
-
-vicroadsmeta = {}
-
-
-def utf_8_encoder(unicode_csv_data):
-    for line in unicode_csv_data:
-        yield line.encode('utf-8')
+from ckanext.datajson.harvester_base import DatasetHarvesterBase
 
 
-def parse_datajson_entry(datajson, package, defaults):
-    package["title"] = (defaults.get("Title Prefix", '') + ' ' +
-                        datajson.get("title", defaults.get("Title"))).strip()
+def parse_datajson_entry(datajson, package, harvester_config):
+    # Notes:
+    # * the data.json field "identifier" is handled by the harvester
+    package["title"] = (harvester_config["defaults"].get("Title Prefix", '') + ' ' +
+                        datajson.get("title", harvester_config["defaults"].get("Title"))).strip()
     if datajson.get("description"):
         h = HTMLParser.HTMLParser()
         package["notes"] = html2text.html2text(h.unescape(datajson.get("description", ' ')))
-    if not hasattr(datajson.get("keyword"), '__iter__'):
-        package["tags"] = [{"name": t} for t in
-                           datajson.get("keyword", '').split(",") if t.strip() != ""]
-    else:
-        package["tags"] = [{"name": t} for t in datajson.get("keyword")]
 
+    package["author"] = datajson.get("publisher", package.get("author"))
+    package["url"] = datajson.get("landingPage",
+                                  datajson.get("webService", datajson.get("accessURL", package.get("url"))))
+
+    package["groups"] = [{"name": g} for g in
+                         harvester_config["defaults"].get("Groups",
+                                                          [])]  # the complexity of permissions makes this useless, CKAN seems to ignore
+
+    # custom license handling
     if 'http://creativecommons.org/licenses/by/3.0/au' in datajson.get("license", ''):
         package['license_id'] = 'cc-by'
     elif 'http' in datajson.get("license", ''):
+        package['license_id'] = 'other'
         license_text = requests.get(datajson.get("license")).content
         if 'opendata.arcgis.com' in license_text:
-            license_text = requests.get(license_text).json()['description']
+            try:
+                license_text = requests.get(license_text).json()['description']
+            except:
+                license_text = datajson.get("license")
             package['citation'] = license_text
         if 'http://creativecommons.org/licenses/by/3.0/au' in license_text:
             package['license_id'] = 'cc-by'
         if 'http://creativecommons.org/licenses/by/4.0/' in license_text:
-            package['license_id'] = 'cc-by-4'
+            package['license_id'] = 'cc-by-4.0'
 
     package["data_state"] = "active"
-    package['jurisdiction'] = defaults.get("jurisdiction", "Commonwealth")
-    if 'extras' not in package:
-        package['extras'] = []
-    if defaults.get("harvest_portal"):
-        package['extras'].append({"key": 'harvest_portal', "value": defaults.get("harvest_portal")})
-        package['extras'].append(
-            {"key": 'harvest_url', "value": datajson.get('landingPage') or datajson.get('identifier')})
+    package['jurisdiction'] = harvester_config["defaults"].get("jurisdiction", "Commonwealth")
+
     package['spatial_coverage'] = datajson.get("spatial", "GA1")
+    if not package['spatial_coverage'] or package['spatial_coverage'] == "":
+        package['spatial_coverage'] = "GA1"
     try:
         bbox = datajson.get("spatial").split(',')
         xmin = float(bbox[0])
@@ -76,13 +76,31 @@ def parse_datajson_entry(datajson, package, defaults):
             package['contact_point'] = datajson.get("contactPoint")['hasEmail'].replace('mailto:', '')
         else:
             package['contact_point'] = datajson.get("contactPoint")
-    if 'contact_point' not in package or package['contact_point'] == '':
+    if 'contact_point' not in package or package['contact_point'] == '' or not isinstance(package['contact_point'], basestring):
         package['contact_point'] = "data.gov@finance.gov.au"
+
     package['temporal_coverage_from'] = datajson.get("issued")
     package['temporal_coverage_to'] = datajson.get("modified")
     package['update_freq'] = 'asNeeded'
-    package["url"] = datajson.get("landingPage", datajson.get("webService", datajson.get("accessURL")))
+
+    # backwards-compatibility for files from Socrata
+    if isinstance(datajson.get("keyword"), basestring):
+        package["tags"] = [{"name": munge_title_to_name(t)} for t in
+                           datajson.get("keyword").split(",") if t.strip() != ""]
+    # field is provided correctly as an array...
+    elif isinstance(datajson.get("keyword"), list):
+        package["tags"] = [{"name": munge_title_to_name(t)} for t in
+                           datajson.get("keyword") if t.strip() != ""]
+
+    # harvest_portals
+    if harvester_config["defaults"].get("harvest_portal"):
+        extra(package, "harvest_portal", harvester_config["defaults"], "harvest_portal")
+        package['extras'].append(
+            {"key": 'harvest_url', "value": datajson.get('landingPage') or datajson.get('identifier')})
+
+    # Add resources.
     package["resources"] = []
+
     for d in datajson.get("distribution", []):
         for k in ("downloadURL", "accessURL", "webService", "downloadUrl", "accessUrl"):
             if d.get(k, "").strip() != "":
@@ -92,8 +110,6 @@ def parse_datajson_entry(datajson, package, defaults):
                                                      d.get('mediaType', "Query Tool"
                                                      if k == "webService" else "Unknown"))),
                 }
-                # extra(r, "Language", d.get("language"))
-                # extra(r, "Size", d.get("size"))
 
                 # work-around for Socrata-style formats array
                 try:
@@ -106,48 +122,23 @@ def parse_datajson_entry(datajson, package, defaults):
                     url_parts = datajson.get("webService").split('/')
                     r['wms_layer'] = url_parts[-1]  # last item in the array
                 package["resources"].append(r)
-    if "vicroadsopendata" in datajson.get("identifier", ""):
-        if len(vicroadsmeta) == 0:
-            req = requests.get("http://data.vicroads.vic.gov.au/metadata/MetadataCatalogue.csv")
-            with io.StringIO(req.text) as csvfile:
-                reader = csv.reader(utf_8_encoder(csvfile))
-                header = []
-                for row in reader:
-                    if len(header) == 0:
-                        header = row
-                    else:
-                        data = {}
-                        i = 0
-                        for col in row:
-                            data[header[i]] = col
-                            i = i + 1
-                        if data['Alternative_Title'].lower() != "":
-                            vicroadsmeta[data['Alternative_Title'].lower()] = data
-                        if data['Title'].lower() != "":
-                            vicroadsmeta[data['Title'].lower()] = data
-        package['geo_data'] = "Y"
-        package["agency_program"] = "VicRoads"
-        package["agency_program_url"] = "https://www.vicroads.vic.gov.au/"
-        package["extract"] = " "
-        title = datajson.get("title", "").lower()
-        if title in vicroadsmeta:
-            for r in package["resources"]:
-                r['release_date'] = vicroadsmeta[title]["Last_Updated"] \
-                                    or vicroadsmeta[datajson.get("title")]["First_Date_Published"]
-            if vicroadsmeta[title]["License"] == 'Internal use only':
-                package["private"] = "true"
-            package["extract"] = vicroadsmeta[title]["Abstract"] or " "
-            package["update_frequency"] = vicroadsmeta[title]["Frequency_of_Updates"]
-            package["geo_coverage"] = vicroadsmeta[title]["Geographic_Extent"]
 
 
 # def extra(package, key, value):
 #    if not value or len(value) == 0: return
 #    package.setdefault("extras", []).append({"key": key, "value": value})
 
+def extra(package, ckan_key, datajson, datajson_fieldname):
+    value = datajson.get(datajson_fieldname)
+    if not value: return
+    DatasetHarvesterBase.set_extra(package, ckan_key, value)
 
-def normalize_format(format):
+
+def normalize_format(format, raise_on_unknown=False):
     # Format should be a file extension. But sometimes Socrata outputs a MIME type.
+    if format is None:
+        if raise_on_unknown: raise ValueError()
+        return "Unknown"
     format = format.lower().replace("ogc ", "")
     m = re.match(r"((application|text)/(\S+))(; charset=.*)?", format)
     if m:
@@ -161,6 +152,8 @@ def normalize_format(format):
         if result == "application/json": return "json"
         if result == "application/xml": return "xml"
         if result == "application/unknown": return "other"
+        if raise_on_unknown: raise ValueError()  # caught & ignored by caller
         return "Other"
     if format == "text": return "Text"
+    if raise_on_unknown and "?" in format: raise ValueError()  # weird value we should try to filter out; exception is caught & ignored by caller
     return format.upper()  # hope it's one of our formats by converting to upprecase
