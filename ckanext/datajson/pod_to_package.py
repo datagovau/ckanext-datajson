@@ -1,6 +1,6 @@
 import HTMLParser
 from ckan.lib.munge import munge_title_to_name
-
+import html2text
 import re
 import requests
 
