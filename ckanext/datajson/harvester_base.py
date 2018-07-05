@@ -11,7 +11,6 @@ from plugin import DataJsonPlugin
 
 import uuid, datetime, hashlib, json, yaml, re, smtplib
 from email.mime.text import MIMEText
-
 import HTMLParser
 import logging
 log = logging.getLogger("harvester")
@@ -238,9 +237,8 @@ class DatasetHarvesterBase(HarvesterBase):
         harvester_config = self.load_config(harvest_object.source)
 
         # Get the metadata that we stored in the HarvestObject's content field.
-        h = HTMLParser.HTMLParser()
         try:
-            dataset = json.loads(h.unescape(harvest_object.content))
+            dataset = json.loads(harvest_object.content)
         except:
             return False
 

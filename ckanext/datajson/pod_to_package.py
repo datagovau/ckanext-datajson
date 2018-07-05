@@ -1,3 +1,4 @@
+import HTMLParser
 from ckan.lib.munge import munge_title_to_name
 
 import re
@@ -12,7 +13,10 @@ def parse_datajson_entry(datajson, package, harvester_config):
     # * the data.json field "identifier" is handled by the harvester
     package["title"] = (harvester_config["defaults"].get("Title Prefix", '') + ' ' +
                         datajson.get("title", harvester_config["defaults"].get("Title"))).strip()
-    package["notes"] = datajson.get("description", package.get("notes"))
+    if datajson.get("description"):
+        h = HTMLParser.HTMLParser()
+        package["notes"] = html2text.html2text(h.unescape(datajson.get("description", ' ')))
+
     package["author"] = datajson.get("publisher", package.get("author"))
     package["url"] = datajson.get("landingPage",
                                   datajson.get("webService", datajson.get("accessURL", package.get("url"))))
@@ -40,6 +44,7 @@ def parse_datajson_entry(datajson, package, harvester_config):
 
     package["data_state"] = "active"
     package['jurisdiction'] = harvester_config["defaults"].get("jurisdiction", "Commonwealth")
+
     package['spatial_coverage'] = datajson.get("spatial", "GA1")
     if not package['spatial_coverage'] or package['spatial_coverage'] == "":
         package['spatial_coverage'] = "GA1"
@@ -119,6 +124,10 @@ def parse_datajson_entry(datajson, package, harvester_config):
                 package["resources"].append(r)
 
 
+# def extra(package, key, value):
+#    if not value or len(value) == 0: return
+#    package.setdefault("extras", []).append({"key": key, "value": value})
+
 def extra(package, ckan_key, datajson, datajson_fieldname):
     value = datajson.get(datajson_fieldname)
     if not value: return
@@ -130,7 +139,7 @@ def normalize_format(format, raise_on_unknown=False):
     if format is None:
         if raise_on_unknown: raise ValueError()
         return "Unknown"
-    format = format.lower()
+    format = format.lower().replace("ogc ", "")
     m = re.match(r"((application|text)/(\S+))(; charset=.*)?", format)
     if m:
         result = m.group(1).replace(';', '')
